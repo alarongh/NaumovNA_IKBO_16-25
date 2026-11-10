@@ -23,12 +23,23 @@ def show_cycles(graph):
         print(f"Цикл: {describe_cycle(cycle)}", file=sys.stderr)
 
 
+def print_order(graph):
+    """Вывести порядок завершения DFS для ациклического графа."""
+    if graph.cycles:
+        cycle = describe_cycle(graph.cycles[0])
+        raise DependencyError(f"порядок невозможен из-за цикла {cycle}")
+    print(" -> ".join(map(str, graph.edges)))
+
+
 def main(argv=None):
     """Построить граф зависимостей из NuGet V3 или JSON."""
     args = parse_args(argv)
     try:
         source = FixtureRepository if args.test else NugetRepository
         graph = build_graph(source(args.repository), args.package)
+        if args.order:
+            print_order(graph)
+            return 0
     except DependencyError as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1

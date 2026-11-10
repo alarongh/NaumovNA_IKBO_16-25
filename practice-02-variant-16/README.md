@@ -81,3 +81,43 @@ run.bat --package X --test --repository examples\isolated.json
 подходящая под диапазон из манифеста. Предварительные версии учитываются,
 если такая версия указана в границе диапазона. Один идентификатор может
 появиться в графе с разными версиями.
+
+## Этап 4. Порядок загрузки
+
+Флаг `--order` в версии этапа 4 выводит порядок завершения DFS.
+У каждого пакета сначала обходятся его зависимости. Пакет без
+зависимостей выводится сразу, а корневой пакет в ациклическом графе —
+последним. При цикле программа печатает замкнутую цепочку и возвращает
+код 1.
+
+```bat
+run.bat --package A --test --repository examples\diamond.json --order
+run.bat --package X --test --repository examples\isolated.json --order
+run.bat --package A --test --repository examples\cycle.json --order
+run.bat --package Microsoft.Extensions.Options --order
+```
+
+В первом примере порядок — `D -> B -> C -> A`, во втором — `X`.
+В третьем программа сообщает о цикле `B -> C -> B`.
+
+Для сравнения использован .NET SDK 10.0.400 на Windows. Скрипт
+[compare.ps1](examples/compare.ps1) создаёт проекты `net10.0` и закрепляет
+версию `11.0.0` каждого корневого пакета. Каждый прогон использует
+новую папку пакетов. Строки `Installed` выводятся из журнала
+`dotnet restore`.
+
+| Корневой пакет | Порядок DFS | Порядок `Installed` в одном прогоне |
+| --- | --- | --- |
+| Options | DI → Primitives → Options | DI → Options → Primitives |
+| Configuration | Primitives → Configuration.Abstractions → Configuration | Configuration.Abstractions → Configuration → Primitives |
+| Logging.Abstractions | DI → DiagnosticSource → Logging.Abstractions | DI → DiagnosticSource → Logging.Abstractions |
+
+В таблице DI означает `Microsoft.Extensions.DependencyInjection.Abstractions`,
+а DiagnosticSource — `System.Diagnostics.DiagnosticSource`. Остальные
+имена приведены без префикса `Microsoft.Extensions.`. Версия всех пакетов
+в таблице — `11.0.0`.
+
+При другом запуске `restore` порядок строк для Options и Configuration
+изменился. DFS ставит зависимости перед пакетами, которые на них
+ссылаются. Строки `Installed` отмечают запись пакетов в локальный кеш.
+В обоих прогонах NuGet восстановил один и тот же набор версий.
