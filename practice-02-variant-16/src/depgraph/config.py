@@ -24,9 +24,6 @@ def parser():
     result.add_argument(
         "--ascii", action="store_true", help="вывести ASCII-дерево",
     )
-    result.add_argument(
-        "--order", action="store_true", help="вывести порядок зависимостей",
-    )
     return result
 
 

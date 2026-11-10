@@ -1,5 +1,6 @@
 """Доступ к индексам и манифестам NuGet V3 по HTTP."""
 
+from http.client import HTTPException
 import json
 from urllib.request import urlopen
 
@@ -18,7 +19,7 @@ def read_url(url):
     try:
         with urlopen(url, timeout=TIMEOUT_SECONDS) as response:
             return response.read()
-    except OSError as error:
+    except (OSError, HTTPException) as error:
         raise DependencyError(f"{url}: {error}") from error
 
 

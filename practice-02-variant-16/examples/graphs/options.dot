@@ -1,0 +1,9 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box, style=filled, fillcolor="#f1f5f9"];
+  "microsoft.extensions.dependencyinjection.abstractions 11.0.0";
+  "microsoft.extensions.options 11.0.0" [fillcolor="#dbeafe"];
+  "microsoft.extensions.options 11.0.0" -> "microsoft.extensions.dependencyinjection.abstractions 11.0.0";
+  "microsoft.extensions.options 11.0.0" -> "microsoft.extensions.primitives 11.0.0";
+  "microsoft.extensions.primitives 11.0.0";
+}

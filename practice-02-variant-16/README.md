@@ -6,25 +6,55 @@
 
 Тема — граф зависимостей пакетов NuGet.
 
+Программа читает манифесты `.nuspec` из репозитория NuGet V3, обходит
+прямые и транзитивные зависимости и сохраняет граф в двух файлах.
+При необходимости тот же граф можно вывести в терминал как ASCII-дерево.
+
 ---
+
+<details>
+<summary>Перейти к этапу</summary>
+
+1. [Параметры командной строки](#этап-1-параметры-командной-строки)
+2. [Сбор данных из NuGet](#этап-2-сбор-данных-из-nuget)
+3. [Рекурсивный обход](#этап-3-рекурсивный-обход)
+4. [Порядок загрузки](#этап-4-порядок-загрузки)
+5. [Визуализация](#этап-5-визуализация)
+
+</details>
+
+## Запуск и проверка
+
+Откройте терминал в каталоге практики. Для запуска нужен Python 3.10
+или новее и Graphviz. На Windows программа ищет `dot` в `PATH`.
+Если его там нет, пробует запустить `dot` в стандартном дистрибутиве
+WSL. На Linux вместо `run.bat` используйте `python3 -B src/main.py`
+с теми же опциями. [Командная строка Graphviz][graphviz]
+
+```bat
+run.bat --package Microsoft.Extensions.Options --ascii
+python -B -m unittest discover -s tests -v
+```
+
+Первая команда создаёт `graph.dot` и `graph.svg` в текущем каталоге.
+Сборка и сторонние пакеты Python не требуются. На Windows с Python
+3.14.7 прошли 18 тестов. SVG проверены через Graphviz 2.43.0 в WSL.
 
 ## Этап 1. Параметры командной строки
 
-Команды выполняются из каталога этой практики. Нужен Python 3.10 или
-новее. Прототип этапа 1 проверял настройки и печатал их в формате
-`ключ=значение`.
-
 | Параметр | Значение |
 | --- | --- |
-| `--package ИМЯ` | Идентификатор пакета. В тестовом режиме — одна латинская буква от A до Z. |
-| `--repository АДРЕС` | URL индекса NuGet V3 или путь к локальному файлу при `--test`. |
-| `--test` | Использует локальный репозиторий. |
-| `--output ФАЙЛ` | Имя файла SVG. По умолчанию `graph.svg`. |
-| `--ascii` | Включает вывод дерева в терминал. |
+| `--package ИМЯ` | Обязательный идентификатор пакета. Для JSON нужна одна буква от A до Z. |
+| `--repository АДРЕС` | URL индекса NuGet V3. По умолчанию — `https://api.nuget.org/v3/index.json`. |
+| `--test` | Читает JSON с диска. В этом режиме `--repository` задаёт путь к файлу. |
+| `--output ФАЙЛ` | Имя SVG, по умолчанию `graph.svg`. Каталог назначения должен существовать. |
+| `--ascii` | Печатает ASCII-дерево. |
+
+[Версия первого этапа][stage1] выводила настройки в формате
+`ключ=значение`.
 
 ```bat
 run.bat --package A --repository examples\diamond.json --test --output graph.svg --ascii
-python -B -m unittest discover -s tests -v
 ```
 
 ```text
@@ -35,7 +65,7 @@ output=graph.svg
 ascii=True
 ```
 
-Проверка ошибок для пяти параметров.
+Примеры ошибок для пяти параметров.
 
 ```bat
 run.bat --package /bad
@@ -47,48 +77,62 @@ run.bat --package A --ascii=maybe
 
 ## Этап 2. Сбор данных из NuGet
 
-По умолчанию программа обращается к `https://api.nuget.org/v3/index.json`.
-Из индекса она берёт адрес `PackageBaseAddress/3.0.0`, затем читает список
-версий и загружает `.nuspec` последней стабильной версии. Для чтения
-достаточно стандартной библиотеки Python.
+Программа находит в индексе ресурс `PackageBaseAddress/3.0.0`.
+Оттуда она читает список версий и загружает `.nuspec` выбранной версии.
+Для корневого пакета берётся последняя стабильная версия из списка.
+HTTP, JSON и XML обрабатывает стандартная библиотека Python.
+[Описание NuGet V3][package-content]
 
-Анализ рассчитан на проект `net10.0` без RID. Если в манифесте несколько
-групп, программа выбирает ближайшую из поддерживаемых групп .NET,
-.NET Core и .NET Standard. Пустая подходящая группа означает, что для неё
-зависимостей нет.
+Группу зависимостей программа выбирает для проекта `net10.0` без RID.
+Она учитывает подходящие группы .NET, .NET Core и .NET Standard.
+Пустая подходящая группа означает, что для этой платформы у пакета
+нет зависимостей.
 
-```bat
-run.bat --package Microsoft.Extensions.Options
+[Версия второго этапа][stage2] выводила только прямые зависимости.
+Запуск `run.bat --package Microsoft.Extensions.Options` дал такой вывод.
+
+```text
+microsoft.extensions.options 11.0.0
+- microsoft.extensions.dependencyinjection.abstractions 11.0.0
+- microsoft.extensions.primitives 11.0.0
 ```
 
 ## Этап 3. Рекурсивный обход
 
-DFS проходит от корневого пакета к его зависимостям. Когда один пакет
-встречается в двух ветвях, программа сохраняет оба ребра, а манифест
-читает один раз. Если ребро ведёт к пакету в текущем стеке DFS,
-программа сохраняет его и печатает цепочку цикла.
+DFS начинает с корневого пакета. Узел определяется именем и версией.
+Если две ветви ведут к одному узлу, программа сохраняет оба ребра
+и читает манифест один раз. При возврате к узлу в текущем стеке DFS
+программа сохраняет ребро и цепочку цикла, затем обходит другие ветви.
+Найденные циклы выводятся в поток ошибок.
 
-В режиме `--test` ключи JSON — имена пакетов, а значения — списки прямых
-зависимостей. Даже пакет без зависимостей нужно объявить с пустым списком.
+Для каждого ребра берётся самая ранняя версия, которая удовлетворяет
+ограничению из манифеста. Предварительные версии учитываются, если они
+указаны в границе диапазона. При разных требованиях ветвей в графе могут
+появиться две версии одного пакета. NuGet для `PackageReference`
+подбирает одну версию с учётом графа проекта. [Правила версий NuGet][versions]
+и [разрешение зависимостей][resolution].
+
+В тестовом режиме ключи JSON — имена пакетов, значения — списки
+прямых зависимостей. Пакет без зависимостей задаётся пустым списком.
+Если ссылка ведёт к пакету, которого нет в файле, программа выдаёт ошибку.
 
 ```bat
-run.bat --package A --test --repository examples\diamond.json
-run.bat --package A --test --repository examples\cycle.json
-run.bat --package X --test --repository examples\isolated.json
+run.bat --package A --test --repository examples\diamond.json --ascii
+run.bat --package A --test --repository examples\cycle.json --ascii
+run.bat --package X --test --repository examples\isolated.json --ascii
 ```
 
-В NuGet-режиме для каждого ребра выбирается самая ранняя версия,
-подходящая под диапазон из манифеста. Предварительные версии учитываются,
-если такая версия указана в границе диапазона. Один идентификатор может
-появиться в графе с разными версиями.
+| Файл | Что проверяется |
+| --- | --- |
+| [diamond.json](examples/diamond.json) | К пакету D ведут две ветви, через B и через C. |
+| [cycle.json](examples/cycle.json) | Программа находит цикл B → C → B и доходит до D. |
+| [isolated.json](examples/isolated.json) | В граф попадает один узел X. |
 
 ## Этап 4. Порядок загрузки
 
-Флаг `--order` в версии этапа 4 выводит порядок завершения DFS.
-У каждого пакета сначала обходятся его зависимости. Пакет без
-зависимостей выводится сразу, а корневой пакет в ациклическом графе —
-последним. При цикле программа печатает замкнутую цепочку и возвращает
-код 1.
+В [версии четвёртого этапа][stage4] флаг `--order` печатал пакеты
+в порядке завершения DFS. Зависимости идут перед пакетом, корень —
+последним. Циклический граф нельзя упорядочить таким образом.
 
 ```bat
 run.bat --package A --test --repository examples\diamond.json --order
@@ -97,8 +141,8 @@ run.bat --package A --test --repository examples\cycle.json --order
 run.bat --package Microsoft.Extensions.Options --order
 ```
 
-В первом примере порядок — `D -> B -> C -> A`, во втором — `X`.
-В третьем программа сообщает о цикле `B -> C -> B`.
+Первый пример выводит `D -> B -> C -> A`, второй — `X`.
+Третий завершается с кодом 1 и сообщает о цикле `B -> C -> B`.
 
 Для сравнения использован .NET SDK 10.0.400 на Windows. Скрипт
 [compare.ps1](examples/compare.ps1) создаёт проекты `net10.0` и закрепляет
@@ -121,3 +165,58 @@ run.bat --package Microsoft.Extensions.Options --order
 изменился. DFS ставит зависимости перед пакетами, которые на них
 ссылаются. Строки `Installed` отмечают запись пакетов в локальный кеш.
 В обоих прогонах NuGet восстановил один и тот же набор версий.
+
+## Этап 5. Визуализация
+
+Стрелка в DOT и SVG направлена от пакета к его зависимости. Красный
+пунктир отмечает ребро, которое возвращается к узлу в стеке DFS.
+В ASCII-дереве помета `[cycle]` обозначает такое ребро, а `[shared]` —
+пакет, уже показанный в другой ветви.
+
+```bat
+mkdir output
+run.bat --package Microsoft.Extensions.Options --output output\options.svg --ascii
+run.bat --package Microsoft.Extensions.Configuration --output output\configuration.svg --ascii
+run.bat --package Microsoft.Extensions.Logging.Abstractions --output output\logging.svg --ascii
+```
+
+Ниже показаны графы пакетов версии `11.0.0`, полученные 10 ноября 2026 г.
+
+**Microsoft.Extensions.Options** · [DOT](examples/graphs/options.dot)
+
+![Граф Microsoft.Extensions.Options](examples/graphs/options.svg)
+
+**Microsoft.Extensions.Configuration** · [DOT](examples/graphs/configuration.dot)
+
+![Граф Microsoft.Extensions.Configuration](examples/graphs/configuration.svg)
+
+**Microsoft.Extensions.Logging.Abstractions** · [DOT](examples/graphs/logging.dot)
+
+![Граф Microsoft.Extensions.Logging.Abstractions](examples/graphs/logging.svg)
+
+Для сравнения запустите в PowerShell `pwsh -NoProfile -File .\examples\compare.ps1`.
+Скрипт сохраняет журналы восстановления и вызывает `dotnet nuget why`
+для каждой зависимости в трёх проектах. [Описание dotnet nuget why][why]
+
+Для всех трёх примеров имена, версии и рёбра совпали с
+`obj/project.assets.json`, который создал `dotnet restore`. У Options
+и Logging.Abstractions по два ребра, у Configuration — три.
+В выводе `dotnet nuget why` для Configuration пакет Primitives виден
+в двух ветвях. SVG рисует один узел с двумя входящими стрелками.
+В ASCII-дереве повторная ссылка на этот узел помечена `[shared]`.
+
+```text
+microsoft.extensions.configuration 11.0.0
+|-- microsoft.extensions.configuration.abstractions 11.0.0
+|   \-- microsoft.extensions.primitives 11.0.0
+\-- microsoft.extensions.primitives 11.0.0 [shared]
+```
+
+[stage1]: https://github.com/alarongh/NaumovNA_IKBO_16-25/commit/3a97dadfb81003477d31d72100af71f33a704088
+[stage2]: https://github.com/alarongh/NaumovNA_IKBO_16-25/commit/b4e47379410d4a45b984f456bea3d72f077f3d55
+[stage4]: https://github.com/alarongh/NaumovNA_IKBO_16-25/commit/04750c92dcf3ca281de3147269840eee752d3cf4
+[package-content]: https://learn.microsoft.com/nuget/api/package-base-address-resource
+[versions]: https://learn.microsoft.com/nuget/concepts/package-versioning
+[resolution]: https://learn.microsoft.com/nuget/concepts/dependency-resolution
+[why]: https://learn.microsoft.com/dotnet/core/tools/dotnet-nuget-why
+[graphviz]: https://graphviz.org/doc/info/command.html

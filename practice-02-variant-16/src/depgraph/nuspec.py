@@ -8,7 +8,10 @@ from .model import Dependency, DependencyError
 
 
 TARGET = "net10.0"
-MODERN = re.compile(r"(?:net|\.?netcoreapp)(\d+)\.(\d+)")
+MODERN = re.compile(r"net(\d+)\.(\d+)")
+CORE = re.compile(r"\.?netcoreapp(\d+)\.(\d+)")
+MIN_DOTNET = (5, 0)
+MIN_CORE = (1, 0)
 STANDARD = re.compile(r"\.?netstandard(\d+)\.(\d+)")
 MAX_DOTNET = (10, 0)
 MAX_STANDARD = (2, 1)
@@ -19,14 +22,15 @@ def framework_rank(value):
     name = value.strip().lower().replace(",version=v", "")
     if name in {"", "any"}:
         return 0, (0, 0)
-    for pattern, limit, priority in (
-        (MODERN, MAX_DOTNET, 2),
-        (STANDARD, MAX_STANDARD, 1),
+    for pattern, minimum, limit, priority in (
+        (MODERN, MIN_DOTNET, MAX_DOTNET, 2),
+        (CORE, MIN_CORE, MAX_DOTNET, 2),
+        (STANDARD, MIN_CORE, MAX_STANDARD, 1),
     ):
         match = pattern.fullmatch(name)
         if match:
             version = tuple(int(part) for part in match.groups())
-            if version <= limit:
+            if minimum <= version <= limit:
                 return priority, version
     return None
 

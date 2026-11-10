@@ -21,7 +21,9 @@ class NugetTests(unittest.TestCase):
                 {"@type": "Other", "@id": INDEX},
                 {"@type": "PackageBaseAddress/3.0.0", "@id": BASE + "/"},
             ]}).encode(),
-            f"{BASE}/pkg/index.json": b'{"versions":["9.0", "10.0", "11-beta"]}',
+            f"{BASE}/pkg/index.json": (
+                b'{"versions":["9.0", "10.0", "11-beta"]}'
+            ),
             f"{BASE}/pkg/10.0/pkg.nuspec": (
                 b'<package xmlns="urn:test"><metadata><dependencies>'
                 b'<group targetFramework=".NETStandard2.0">'
@@ -55,6 +57,7 @@ class NugetTests(unittest.TestCase):
         unsupported = b"""
             <package><metadata><dependencies>
               <group targetFramework=".NETFramework4.8" />
+              <group targetFramework="net4.8" />
             </dependencies></metadata></package>
         """
         for content in (b"<bad", b"<package />", unsupported):
