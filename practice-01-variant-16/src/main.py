@@ -2,14 +2,26 @@
 
 import tkinter as tk
 
+from emulator.config import create_parser, read_startup
 from emulator.gui import Terminal
 from emulator.shell import Shell
 
 
-def main():
-    """Открыть окно и запустить цикл событий."""
+def main(argv=None):
+    """Прочитать настройки, открыть окно и запустить цикл событий."""
+    parser = create_parser()
+    options = parser.parse_args(argv)
+    vfs_path = options.vfs.resolve()
+    startup_path = options.startup.resolve() if options.startup else None
+    try:
+        lines = read_startup(startup_path) if startup_path else []
+    except (OSError, UnicodeError) as error:
+        parser.error(f"стартовый скрипт: {error}")
+    settings = f"VFS = {vfs_path}\nСтартовый скрипт = {startup_path or 'нет'}"
     root = tk.Tk()
-    Terminal(root, Shell(), "Учебная VFS")
+    terminal = Terminal(root, Shell(), vfs_path.stem)
+    terminal.write(settings)
+    root.after_idle(terminal.run_startup, lines)
     root.mainloop()
 
 

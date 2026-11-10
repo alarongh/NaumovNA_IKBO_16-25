@@ -54,3 +54,10 @@ class Terminal:
             self.write(response)
         if self.shell.closed:
             self.root.destroy()
+
+    def run_startup(self, lines):
+        """Выполнить команды по порядку, пока сеанс открыт."""
+        for line in lines:
+            self.run_line(line)
+            if self.shell.closed:
+                return

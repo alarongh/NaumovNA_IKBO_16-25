@@ -31,6 +31,17 @@ class TerminalTests(unittest.TestCase):
         with self.assertRaises(tk.TclError):
             root.winfo_exists()
 
+    def test_startup_dialog_and_exit(self):
+        root = tk.Tk()
+        self.addCleanup(self.close_window, root)
+        terminal = Terminal(root, Shell(), "Проверка")
+        terminal.run_startup(["unknown", "ls /", "cd /"])
+        output = terminal.output.get("1.0", "end-1c")
+        self.assertIn("$ unknown\nОшибка:", output)
+        self.assertIn("$ ls /\nls: ['/']\n$ cd /\ncd: ['/']", output)
+        terminal.run_startup(["exit", "ls"])
+        self.assertTrue(terminal.shell.closed)
+
     @staticmethod
     def close_window(root):
         """Закрыть окно при прерванном тесте."""
