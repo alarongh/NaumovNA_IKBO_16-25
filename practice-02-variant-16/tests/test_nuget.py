@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from src.depgraph.model import Dependency, DependencyError
+from src.depgraph.model import Dependency, DependencyError, Package
 from src.depgraph.nuget import NugetRepository
 from src.depgraph.nuspec import read_dependencies
 from src.depgraph.versions import Requirement, version_key
@@ -77,3 +77,14 @@ class NugetTests(unittest.TestCase):
         self.assertTrue(Requirement.parse("[1.0-beta.2,2)").allows_prerelease)
         with self.assertRaises(DependencyError):
             Requirement.parse("(1.0)")
+
+    def test_resolve_uses_lowest_satisfying_version(self):
+        with patch("src.depgraph.nuget.find_base", return_value=BASE):
+            repo = NugetRepository(INDEX)
+        repo.version_lists["pkg"] = ("1.0-beta", "1.0", "1.4", "2.0")
+        self.assertEqual(repo.resolve(Dependency("pkg", "(1.0,2)")),
+                         Package("pkg", "1.4"))
+        self.assertEqual(repo.resolve(Dependency("pkg", "[1.0-beta]")),
+                         Package("pkg", "1.0-beta"))
+        with self.assertRaises(DependencyError):
+            repo.resolve(Dependency("pkg", "[3,4)"))

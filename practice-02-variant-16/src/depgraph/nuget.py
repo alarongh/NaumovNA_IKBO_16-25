@@ -6,7 +6,7 @@ from urllib.request import urlopen
 from .config import repository_url
 from .model import DependencyError, Package
 from .nuspec import read_dependencies
-from .versions import version_key
+from .versions import Requirement, version_key
 
 
 TIMEOUT_SECONDS = 15
@@ -85,3 +85,22 @@ class NugetRepository:
             return read_dependencies(read_url(f"{address}/{name}.nuspec"))
         except DependencyError as error:
             raise DependencyError(f"{package}: {error}") from error
+
+    def resolve(self, dependency):
+        """Выбрать минимальную версию, допустимую для данного ребра."""
+        requirement = Requirement.parse(dependency.requirement)
+        for version in self.versions(dependency.name):
+            key = version_key(version)
+            if not (key[1] or requirement.allows_prerelease):
+                continue
+            if requirement.accepts(key):
+                return Package(dependency.name, version)
+        detail = dependency.requirement or "(любая)"
+        raise DependencyError(f"{dependency.name}: нет версии для {detail}")
+
+    def dependencies(self, package):
+        """Прочитать манифест и подобрать версию для каждой зависимости."""
+        try:
+            return tuple(self.resolve(item) for item in self.manifest(package))
+        except DependencyError as error:
+            raise DependencyError(f"зависимости {package}: {error}") from error
