@@ -58,7 +58,7 @@ def check_output(path, source=None):
         raise ValueError("каталог для результата должен существовать")
     for target in (path, path.with_suffix(".dot")):
         if target.is_dir():
-            raise ValueError(f"{target} — каталог")
+            raise ValueError(f"по пути {target} уже есть каталог")
         if source is not None and target.resolve() == Path(source).resolve():
             raise ValueError("имя результата совпадает с файлом репозитория")
 

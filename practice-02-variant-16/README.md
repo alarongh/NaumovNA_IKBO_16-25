@@ -1,14 +1,15 @@
 # Практическое занятие №2. Вариант 16
 
-Выполнил — Наумов Никита Александрович.
+Выполнил Наумов Никита Александрович.
 
-Группа — ИКБО-16-25.
+Группа ИКБО-16-25.
 
-Тема — граф зависимостей пакетов NuGet.
+**Тема работы**\
+Граф зависимостей пакетов NuGet.
 
 Программа читает манифесты `.nuspec` из репозитория NuGet V3, обходит
-прямые и транзитивные зависимости и сохраняет граф в двух файлах.
-При необходимости тот же граф можно вывести в терминал как ASCII-дерево.
+прямые и транзитивные зависимости и сохраняет граф в DOT и SVG.
+Флаг `--ascii` выводит дерево в терминал.
 
 ---
 
@@ -45,7 +46,7 @@ python -B -m unittest discover -s tests -v
 | Параметр | Значение |
 | --- | --- |
 | `--package ИМЯ` | Обязательный идентификатор пакета. Для JSON нужна одна буква от A до Z. |
-| `--repository АДРЕС` | URL индекса NuGet V3. По умолчанию — `https://api.nuget.org/v3/index.json`. |
+| `--repository АДРЕС` | URL индекса NuGet V3. Стандартный адрес `https://api.nuget.org/v3/index.json`. |
 | `--test` | Читает JSON с диска. В этом режиме `--repository` задаёт путь к файлу. |
 | `--output ФАЙЛ` | Имя SVG, по умолчанию `graph.svg`. Каталог назначения должен существовать. |
 | `--ascii` | Печатает ASCII-дерево. |
@@ -112,9 +113,9 @@ DFS начинает с корневого пакета. Узел определ
 подбирает одну версию с учётом графа проекта. [Правила версий NuGet][versions]
 и [разрешение зависимостей][resolution].
 
-В тестовом режиме ключи JSON — имена пакетов, значения — списки
-прямых зависимостей. Пакет без зависимостей задаётся пустым списком.
-Если ссылка ведёт к пакету, которого нет в файле, программа выдаёт ошибку.
+В тестовом JSON каждому имени пакета соответствует список его прямых
+зависимостей. У пакета без зависимостей список пуст. Если ссылка ведёт
+к пакету, которого нет в файле, программа выдаёт ошибку.
 
 ```bat
 run.bat --package A --test --repository examples\diamond.json --ascii
@@ -131,8 +132,8 @@ run.bat --package X --test --repository examples\isolated.json --ascii
 ## Этап 4. Порядок загрузки
 
 В [версии четвёртого этапа][stage4] флаг `--order` печатал пакеты
-в порядке завершения DFS. Зависимости идут перед пакетом, корень —
-последним. Циклический граф нельзя упорядочить таким образом.
+в порядке завершения DFS. В графе без циклов зависимости идут перед
+пакетом, которому они нужны. Корневой пакет выводится последним.
 
 ```bat
 run.bat --package A --test --repository examples\diamond.json --order
@@ -141,8 +142,9 @@ run.bat --package A --test --repository examples\cycle.json --order
 run.bat --package Microsoft.Extensions.Options --order
 ```
 
-Первый пример выводит `D -> B -> C -> A`, второй — `X`.
-Третий завершается с кодом 1 и сообщает о цикле `B -> C -> B`.
+На `diamond.json` программа выводит `D -> B -> C -> A`. На
+`isolated.json` выводит только `X`. На `cycle.json` программа
+сообщает о цикле `B -> C -> B` и завершает работу с кодом 1.
 
 Для сравнения использован .NET SDK 10.0.400 на Windows. Скрипт
 [compare.ps1](examples/compare.ps1) создаёт проекты `net10.0` и закрепляет
@@ -156,10 +158,10 @@ run.bat --package Microsoft.Extensions.Options --order
 | Configuration | Primitives → Configuration.Abstractions → Configuration | Configuration.Abstractions → Configuration → Primitives |
 | Logging.Abstractions | DI → DiagnosticSource → Logging.Abstractions | DI → DiagnosticSource → Logging.Abstractions |
 
-В таблице DI означает `Microsoft.Extensions.DependencyInjection.Abstractions`,
-а DiagnosticSource — `System.Diagnostics.DiagnosticSource`. Остальные
-имена приведены без префикса `Microsoft.Extensions.`. Версия всех пакетов
-в таблице — `11.0.0`.
+DI в таблице обозначает `Microsoft.Extensions.DependencyInjection.Abstractions`.
+DiagnosticSource соответствует `System.Diagnostics.DiagnosticSource`.
+У остальных имён опущен префикс `Microsoft.Extensions.`. Во всех строках
+использована версия пакетов `11.0.0`.
 
 При другом запуске `restore` порядок строк для Options и Configuration
 изменился. DFS ставит зависимости перед пакетами, которые на них
@@ -170,8 +172,8 @@ run.bat --package Microsoft.Extensions.Options --order
 
 Стрелка в DOT и SVG направлена от пакета к его зависимости. Красный
 пунктир отмечает ребро, которое возвращается к узлу в стеке DFS.
-В ASCII-дереве помета `[cycle]` обозначает такое ребро, а `[shared]` —
-пакет, уже показанный в другой ветви.
+В ASCII-дереве помета `[cycle]` обозначает такое ребро. Помета
+`[shared]` указывает на пакет, который уже показан в другой ветви.
 
 Если SVG сохранить не удаётся, программа восстанавливает прежний DOT
 или убирает новый DOT, если до запуска файла не было.
@@ -199,11 +201,12 @@ run.bat --package Microsoft.Extensions.Logging.Abstractions --output output\logg
 
 Для сравнения запустите в PowerShell `pwsh -NoProfile -File .\examples\compare.ps1`.
 Скрипт сохраняет журналы восстановления и вызывает `dotnet nuget why`
-для каждой зависимости в трёх проектах. [Описание dotnet nuget why][why]
+для двух зависимостей в каждом из трёх примеров. [Описание dotnet nuget why][why]
 
 Для всех трёх примеров имена, версии и рёбра совпали с
-`obj/project.assets.json`, который создал `dotnet restore`. У Options
-и Logging.Abstractions по два ребра, у Configuration — три.
+`obj/project.assets.json`, который создал `dotnet restore`. Графы
+Options и Logging.Abstractions содержат по два ребра. У Configuration
+три ребра.
 В выводе `dotnet nuget why` для Configuration пакет Primitives виден
 в двух ветвях. SVG рисует один узел с двумя входящими стрелками.
 В ASCII-дереве повторная ссылка на этот узел помечена `[shared]`.

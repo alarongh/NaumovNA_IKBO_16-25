@@ -28,7 +28,7 @@ def read_fixture(path):
         raise DependencyError("ожидался объект JSON с пакетами")
     for name, children in graph.items():
         if not TEST_ID.fullmatch(name):
-            raise DependencyError(f"{name!r}: нужна буква A–Z")
+            raise DependencyError(f"{name!r}: нужна буква от A до Z")
         if not isinstance(children, list):
             raise DependencyError(f"{name}: ожидался список зависимостей")
         for child in children:

@@ -13,7 +13,7 @@ class Terminal:
     def __init__(self, root, shell, vfs_name):
         self.root = root
         self.shell = shell
-        root.title(f"Эмулятор оболочки — {vfs_name}")
+        root.title(f"Эмулятор оболочки ({vfs_name})")
         root.minsize(480, 280)
         self.output = ScrolledText(
             root, width=78, height=22, state="disabled",
