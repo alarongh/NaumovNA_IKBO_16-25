@@ -12,7 +12,8 @@ class ShellTests(unittest.TestCase):
         self.shell = Shell(Vfs.load(EXAMPLES / "deep.xml"))
 
     def test_split_command(self):
-        self.assertEqual(parse_command("  ls   -l  /home "), ("ls", ["-l", "/home"]))
+        result = parse_command("  ls   -l  /home ")
+        self.assertEqual(result, ("ls", ["-l", "/home"]))
 
     def test_empty_and_unknown_commands(self):
         self.assertEqual(self.shell.execute("   "), "")
@@ -50,9 +51,12 @@ class ShellTests(unittest.TestCase):
         self.assertEqual(self.shell.execute("du /home"), (
             "10\t/home/student/docs\n17\t/home/student\n17\t/home"
         ))
-        self.assertEqual(self.shell.execute("du /welcome.txt"), "3\t/welcome.txt")
+        size = self.shell.execute("du -- /welcome.txt")
+        self.assertEqual(size, "3\t/welcome.txt")
         self.assertEqual(self.shell.execute("uname"), "Linux")
-        self.assertEqual(self.shell.execute("uname -a"), "Linux vfs 1.0 emulator")
+        self.assertEqual(
+            self.shell.execute("uname -a"), "Linux vfs 1.0 emulator",
+        )
 
     def test_bad_options_and_paths(self):
         for line in ("ls /absent", "ls -x", "ls / /tmp", "pwd arg",

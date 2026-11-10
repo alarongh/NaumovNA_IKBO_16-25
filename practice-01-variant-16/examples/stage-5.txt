@@ -1,0 +1,29 @@
+# Права и владельцы меняются внутри текущего сеанса
+cd /home/student/docs
+ls -l
+chmod 600 readme.txt
+ls -l readme.txt
+chmod u+x,g+r,o= readme.txt
+ls -l readme.txt
+chmod a-w readme.txt
+ls -l readme.txt
+chmod 1750 /tmp
+ls -l /
+chmod +x bytes.bin readme.txt
+ls -l
+chown alice readme.txt
+ls -l readme.txt
+chown :staff readme.txt
+ls -l readme.txt
+chown bob:team bytes.bin readme.txt
+ls -l
+chmod 999 readme.txt
+chmod u+ readme.txt
+chmod 644
+chmod 777 readme.txt absent
+chown alice
+chown alice: readme.txt
+chown : readme.txt
+chown alice absent
+ls -l
+# Чтобы увидеть исходные атрибуты, закройте сеанс и снова загрузите XML.

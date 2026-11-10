@@ -13,7 +13,8 @@ class TerminalTests(unittest.TestCase):
     def test_interactive_session(self):
         root = tk.Tk()
         self.addCleanup(self.close_window, root)
-        terminal = Terminal(root, Shell(Vfs.load(EXAMPLES / "deep.xml")), "Учебная VFS")
+        vfs = Vfs.load(EXAMPLES / "deep.xml")
+        terminal = Terminal(root, Shell(vfs), vfs.name)
         root.update()
         terminal.entry.focus_force()
         root.update()
@@ -23,7 +24,9 @@ class TerminalTests(unittest.TestCase):
             terminal.entry.event_generate("<Return>")
             root.update()
         output = terminal.output.get("1.0", "end-1c")
-        self.assertIn("/ $ ls -l /home\ndrwxr-xr-x student students 0 student", output)
+        self.assertIn(
+            "/ $ ls -l /home\ndrwxr-xr-x student students 0 student", output,
+        )
         self.assertIn("/ $ cd /home\n/home $ unknown", output)
         self.assertEqual(terminal.prompt.cget("text"), "/home $ ")
         self.assertIn("Ошибка: unknown: команда не найдена", output)
@@ -37,7 +40,8 @@ class TerminalTests(unittest.TestCase):
     def test_startup_dialog_and_exit(self):
         root = tk.Tk()
         self.addCleanup(self.close_window, root)
-        terminal = Terminal(root, Shell(Vfs.load(EXAMPLES / "deep.xml")), "Проверка")
+        vfs = Vfs.load(EXAMPLES / "deep.xml")
+        terminal = Terminal(root, Shell(vfs), vfs.name)
         terminal.run_startup(["unknown", "ls /", "cd /"])
         output = terminal.output.get("1.0", "end-1c")
         self.assertIn("$ unknown\nОшибка:", output)

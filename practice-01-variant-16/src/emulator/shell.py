@@ -2,6 +2,7 @@
 
 from stat import S_IFDIR, S_IFREG, filemode
 
+from .permissions import apply_mode, mode_changes, parse_owner
 from .vfs import VfsError
 
 
@@ -46,7 +47,8 @@ def long_entry(name, node):
     """Вывести права, владельца, группу, размер файла и имя."""
     kind = S_IFDIR if node.is_directory else S_IFREG
     size = len(node.data or b"")
-    return f"{filemode(kind | node.mode)} {node.owner} {node.group} {size} {name}"
+    mode = filemode(kind | node.mode)
+    return f"{mode} {node.owner} {node.group} {size} {name}"
 
 
 def directory_entries(node, show_hidden):
@@ -84,6 +86,8 @@ class Shell:
             "pwd": self.pwd,
             "uname": self.uname,
             "du": self.du,
+            "chmod": self.chmod,
+            "chown": self.chown,
             "exit": self.exit,
         }
 
@@ -148,6 +152,35 @@ class Shell:
         if "s" in options or not node.is_directory:
             return f"{size}\t{node.path}"
         return "\n".join(rows)
+
+    def change_targets(self, arguments, usage):
+        """Проверить наличие параметров и найти все цели до изменения."""
+        if not arguments:
+            raise VfsError(f"использование: {usage}")
+        value, *paths = arguments
+        if not paths:
+            raise VfsError(f"использование: {usage}")
+        targets = [self.vfs.resolve(path, self.cwd) for path in paths]
+        return value, targets
+
+    def chmod(self, arguments):
+        """Изменить права файлов и каталогов в памяти."""
+        value, targets = self.change_targets(arguments, "chmod РЕЖИМ ПУТЬ ...")
+        changes = mode_changes(value)
+        for node in targets:
+            node.mode = apply_mode(node.mode, changes)
+        return ""
+
+    def chown(self, arguments):
+        """Изменить владельца и/или группу в памяти."""
+        value, targets = self.change_targets(
+            arguments, "chown ВЛАДЕЛЕЦ[:ГРУППА] ПУТЬ ...",
+        )
+        owner, group = parse_owner(value)
+        for node in targets:
+            node.owner = owner or node.owner
+            node.group = group or node.group
+        return ""
 
     def exit(self, arguments):
         """Завершить сеанс."""

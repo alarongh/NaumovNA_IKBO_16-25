@@ -13,6 +13,7 @@ ls -al .
 du
 du -s /home
 du bytes.bin
+du -- /tmp
 uname
 uname -a
 cd ..
