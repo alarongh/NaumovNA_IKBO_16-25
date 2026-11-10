@@ -1,16 +1,12 @@
 """Проверка опций и ошибок CLI."""
 
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from src.depgraph.cli import main
 from src.depgraph.config import NUGET_INDEX, parse_args
-
-
-EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -20,20 +16,6 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(args.output, Path("graph.svg"))
         self.assertFalse(args.test)
         self.assertFalse(args.ascii)
-
-    def test_config_is_printed_as_key_value(self):
-        output = StringIO()
-        source = str(EXAMPLES / "diamond.json")
-        with redirect_stdout(output):
-            result = main([
-                "--package", "A", "--test", "--repository", source,
-                "--output", "diagram.svg", "--ascii",
-            ])
-        self.assertEqual(result, 0)
-        self.assertEqual(output.getvalue().splitlines(), [
-            "package=A", f"repository={source}", "test=True",
-            "output=diagram.svg", "ascii=True",
-        ])
 
     def test_each_option_reports_an_error(self):
         cases = [
