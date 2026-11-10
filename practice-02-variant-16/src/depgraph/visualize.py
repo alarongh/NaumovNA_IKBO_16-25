@@ -100,8 +100,25 @@ def save_visualization(graph, output):
             draft_svg = Path(directory) / "graph.svg"
             draft_dot.write_bytes(dot.encode("utf-8"))
             draft_svg.write_bytes(svg)
-            draft_dot.replace(output.with_suffix(".dot"))
-            draft_svg.replace(output)
+            replace_outputs(draft_dot, draft_svg, output)
     except OSError as error:
         message = f"не удалось сохранить результат: {error}"
         raise DependencyError(message) from error
+
+
+def replace_outputs(draft_dot, draft_svg, output):
+    """Вернуть прежний DOT, если замена SVG завершилась ошибкой."""
+    target_dot = output.with_suffix(".dot")
+    backup_dot = draft_dot.with_name("previous.dot")
+    had_dot = target_dot.exists() or target_dot.is_symlink()
+    if had_dot:
+        shutil.copy2(target_dot, backup_dot, follow_symlinks=False)
+    draft_dot.replace(target_dot)
+    try:
+        draft_svg.replace(output)
+    except OSError:
+        if had_dot:
+            backup_dot.replace(target_dot)
+        else:
+            target_dot.unlink()
+        raise

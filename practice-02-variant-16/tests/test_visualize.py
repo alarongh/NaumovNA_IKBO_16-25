@@ -65,3 +65,30 @@ class VisualizationTests(unittest.TestCase):
                     save_visualization(graph, output)
             self.assertEqual(output.read_bytes(), b"old svg")
             self.assertEqual(dot.read_bytes(), b"old dot")
+
+    def test_svg_write_failure_rolls_back_dot(self):
+        graph = graph_from("diamond.json")
+        replace = Path.replace
+        renderer = "src.depgraph.visualize.render_svg"
+        for had_dot in (False, True):
+            with self.subTest(had_dot=had_dot), TemporaryDirectory() as folder:
+                output = Path(folder) / "result.svg"
+                dot = output.with_suffix(".dot")
+                output.write_bytes(b"old svg")
+                if had_dot:
+                    dot.write_bytes(b"old dot")
+
+                def fail_on_svg(path, target):
+                    if target == output:
+                        raise PermissionError("SVG is read-only")
+                    return replace(path, target)
+
+                with patch(renderer, return_value=b"<svg/>"), patch.object(
+                    Path, "replace", autospec=True, side_effect=fail_on_svg,
+                ):
+                    with self.assertRaises(DependencyError):
+                        save_visualization(graph, output)
+                self.assertEqual(output.read_bytes(), b"old svg")
+                self.assertEqual(dot.exists(), had_dot)
+                if had_dot:
+                    self.assertEqual(dot.read_bytes(), b"old dot")
