@@ -2,8 +2,9 @@
 
 import tkinter as tk
 import unittest
+from unittest.mock import patch
 
-from src.emulator.config import EXAMPLES
+from src.emulator.config import EXAMPLES, read_startup
 from src.emulator.gui import Terminal
 from src.emulator.shell import Shell
 from src.emulator.vfs import Vfs
@@ -48,6 +49,24 @@ class TerminalTests(unittest.TestCase):
         self.assertIn("/ $ ls /\nhome\ntmp\nwelcome.txt\n/ $ cd /", output)
         terminal.run_startup(["exit", "ls"])
         self.assertTrue(terminal.shell.closed)
+
+    def test_complete_stage_three_startup(self):
+        root = tk.Tk()
+        self.addCleanup(self.close_window, root)
+        vfs = Vfs.load(EXAMPLES / "deep.xml")
+        terminal = Terminal(root, Shell(vfs), vfs.name)
+        lines = read_startup(EXAMPLES / "stage-3-complete.txt")
+        with patch.object(terminal, "write", wraps=terminal.write) as write:
+            terminal.run_startup(lines)
+        dialog = [call.args[0] for call in write.call_args_list]
+        self.assertIn("/ $ ls -l /", dialog)
+        self.assertIn("/ $ cd", dialog)
+        self.assertIn("Ошибка: unknown: команда не найдена", dialog)
+        self.assertIn("Ошибка: exit: команда не принимает аргументы", dialog)
+        self.assertEqual(dialog[-1], "/ $ exit")
+        self.assertTrue(terminal.shell.closed)
+        with self.assertRaises(tk.TclError):
+            root.winfo_exists()
 
     @staticmethod
     def close_window(root):

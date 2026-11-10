@@ -1,0 +1,9 @@
+# Проверка всех команд, доступных на третьем этапе
+ls
+ls -l /
+cd /
+cd
+ls /absent
+unknown
+exit extra
+exit
