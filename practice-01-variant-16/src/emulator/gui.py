@@ -22,7 +22,7 @@ class Terminal:
         self.output.pack(fill="both", expand=True, padx=10, pady=(10, 6))
         row = ttk.Frame(root)
         row.pack(fill="x", padx=10, pady=(0, 10))
-        self.prompt = ttk.Label(row, text="$ ", font="TkFixedFont")
+        self.prompt = ttk.Label(row, text=shell.prompt, font="TkFixedFont")
         self.prompt.pack(side="left")
         self.entry = ttk.Entry(row, font="TkFixedFont")
         self.entry.pack(side="left", fill="x", expand=True)
@@ -54,6 +54,8 @@ class Terminal:
             self.write(response)
         if self.shell.closed:
             self.root.destroy()
+        else:
+            self.prompt.configure(text=self.shell.prompt)
 
     def run_startup(self, lines):
         """Выполнить команды по порядку, пока сеанс открыт."""

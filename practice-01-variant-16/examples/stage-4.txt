@@ -1,0 +1,33 @@
+# Основные команды на образе deep.xml
+pwd
+ls
+ls /
+ls -l /welcome.txt
+ls -- /tmp
+cd /home/student
+pwd
+cd ./docs
+ls -a
+ls -l
+ls -al .
+du
+du -s /home
+du bytes.bin
+uname
+uname -a
+cd ..
+pwd
+cd
+pwd
+cd /../../
+ls /absent
+ls -x
+ls /home /tmp
+cd /home/student/docs/readme.txt
+cd /absent
+cd /home /tmp
+pwd extra
+uname -x
+du -z
+du /absent
+du /home /tmp

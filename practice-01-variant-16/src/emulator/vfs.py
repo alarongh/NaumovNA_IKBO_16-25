@@ -33,6 +33,16 @@ class Node:
         """Определить тип записи по наличию содержимого файла."""
         return self.data is None
 
+    @property
+    def path(self):
+        """Собрать абсолютный путь по цепочке родителей."""
+        parts = []
+        node = self
+        while node.parent is not None:
+            parts.append(node.name)
+            node = node.parent
+        return "/" + "/".join(reversed(parts))
+
     def walk(self):
         """Перечислить текущую запись и всё её поддерево."""
         yield self
@@ -58,6 +68,20 @@ class Vfs:
         if element.tag != "vfs" or not name:
             raise VfsError("ожидается корневой элемент <vfs name=\"...\">")
         return cls(name, load_directory(element, "/", None))
+
+    def resolve(self, path, cwd):
+        """Найти узел, обрабатывая абсолютные пути, . и .."""
+        node = self.root if path.startswith("/") else cwd
+        for part in path.split("/"):
+            if not node.is_directory:
+                raise VfsError(f"{node.path}: не каталог")
+            if part == "..":
+                node = node.parent or self.root
+            elif part not in {"", "."}:
+                if part not in node.children:
+                    raise VfsError(f"{path}: нет такого файла или каталога")
+                node = node.children[part]
+        return node
 
     def summary(self):
         """Сосчитать каталоги и файлы, включая корневой каталог."""

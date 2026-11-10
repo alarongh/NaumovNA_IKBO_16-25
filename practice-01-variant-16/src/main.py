@@ -24,7 +24,7 @@ def main(argv=None):
         parser.error(f"VFS: {error}")
     settings = f"VFS = {vfs_path}\nСтартовый скрипт = {startup_path or 'нет'}"
     root = tk.Tk()
-    terminal = Terminal(root, Shell(), vfs.name)
+    terminal = Terminal(root, Shell(vfs), vfs.name)
     terminal.write(settings)
     terminal.write(vfs.summary())
     root.after_idle(terminal.run_startup, lines)

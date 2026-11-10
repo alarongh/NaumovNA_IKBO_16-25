@@ -1,5 +1,9 @@
 """Разбор строк и исполнение команд оболочки."""
 
+from stat import S_IFDIR, S_IFREG, filemode
+
+from .vfs import VfsError
+
 
 class ShellError(ValueError):
     """Ошибка, которую нужно вывести в терминале."""
@@ -11,12 +15,82 @@ def parse_command(line):
     return (words[0], words[1:]) if words else ("", [])
 
 
-class Shell:
-    """Сеанс эмулятора."""
+def parse_options(arguments, supported):
+    """Разобрать короткие флаги и позиционные параметры."""
+    options, operands = set(), []
+    read_options = True
+    for argument in arguments:
+        if read_options and argument == "--":
+            read_options = False
+        elif read_options and argument.startswith("-") and argument != "-":
+            for option in argument[1:]:
+                if option not in supported:
+                    raise VfsError(f"неизвестный флаг -{option}")
+                options.add(option)
+        else:
+            operands.append(argument)
+    return options, operands
 
-    def __init__(self):
+
+def one_path(arguments, default):
+    """Вернуть единственный путь или значение по умолчанию."""
+    if not arguments:
+        return default
+    path, *extra = arguments
+    if extra:
+        raise VfsError("ожидается один путь")
+    return path
+
+
+def long_entry(name, node):
+    """Вывести права, владельца, группу, размер файла и имя."""
+    kind = S_IFDIR if node.is_directory else S_IFREG
+    size = len(node.data or b"")
+    return f"{filemode(kind | node.mode)} {node.owner} {node.group} {size} {name}"
+
+
+def directory_entries(node, show_hidden):
+    """Сформировать отсортированный список записей для ls."""
+    entries = []
+    if show_hidden:
+        entries.extend(((".", node), ("..", node.parent or node)))
+    for name in sorted(node.children):
+        if show_hidden or not name.startswith("."):
+            entries.append((name, node.children[name]))
+    return entries
+
+
+def disk_usage(node, rows):
+    """Подсчитать байты и собрать строки для вложенных каталогов."""
+    if not node.is_directory:
+        return len(node.data)
+    size = 0
+    for name in sorted(node.children):
+        size += disk_usage(node.children[name], rows)
+    rows.append(f"{size}\t{node.path}")
+    return size
+
+
+class Shell:
+    """Сеанс эмулятора с собственным текущим каталогом."""
+
+    def __init__(self, vfs):
+        self.vfs = vfs
+        self.cwd = vfs.root
         self.closed = False
-        self.commands = {"ls": self.ls, "cd": self.cd, "exit": self.exit}
+        self.commands = {
+            "ls": self.ls,
+            "cd": self.cd,
+            "pwd": self.pwd,
+            "uname": self.uname,
+            "du": self.du,
+            "exit": self.exit,
+        }
+
+    @property
+    def prompt(self):
+        """Показать текущий виртуальный путь в приглашении."""
+        return f"{self.cwd.path} $ "
 
     def execute(self, line):
         """Выполнить команду и вернуть текст её ответа."""
@@ -25,19 +99,59 @@ class Shell:
             return ""
         if command not in self.commands:
             raise ShellError(f"{command}: команда не найдена")
-        return self.commands[command](arguments)
+        try:
+            return self.commands[command](arguments)
+        except VfsError as error:
+            raise ShellError(f"{command}: {error}") from error
 
     def ls(self, arguments):
-        """Показать аргументы команды ls."""
-        return f"ls: {arguments}"
+        """Показать файл или содержимое каталога."""
+        options, operands = parse_options(arguments, "al")
+        node = self.vfs.resolve(one_path(operands, "."), self.cwd)
+        if node.is_directory:
+            entries = directory_entries(node, "a" in options)
+        else:
+            entries = [(node.name, node)]
+        if "l" in options:
+            return "\n".join(long_entry(name, item) for name, item in entries)
+        return "\n".join(name for name, _ in entries)
 
     def cd(self, arguments):
-        """Показать аргументы команды cd."""
-        return f"cd: {arguments}"
+        """Сменить текущий каталог внутри VFS."""
+        path = one_path(arguments, "/")
+        target = self.vfs.resolve(path, self.cwd)
+        if not target.is_directory:
+            raise VfsError(f"{path}: не каталог")
+        self.cwd = target
+        return ""
+
+    def pwd(self, arguments):
+        """Вернуть абсолютный путь текущего каталога."""
+        if arguments:
+            raise VfsError("команда не принимает аргументы")
+        return self.cwd.path
+
+    def uname(self, arguments):
+        """Показать условное имя системы эмулятора."""
+        if not arguments:
+            return "Linux"
+        if arguments == ["-a"]:
+            return "Linux vfs 1.0 emulator"
+        raise VfsError("использование: uname [-a]")
+
+    def du(self, arguments):
+        """Показать размер файла или дерева каталогов в байтах."""
+        options, operands = parse_options(arguments, "s")
+        node = self.vfs.resolve(one_path(operands, "."), self.cwd)
+        rows = []
+        size = disk_usage(node, rows)
+        if "s" in options or not node.is_directory:
+            return f"{size}\t{node.path}"
+        return "\n".join(rows)
 
     def exit(self, arguments):
         """Завершить сеанс."""
         if arguments:
-            raise ShellError("exit: команда не принимает аргументы")
+            raise VfsError("команда не принимает аргументы")
         self.closed = True
         return ""
