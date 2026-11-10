@@ -12,7 +12,7 @@ def create_parser():
     """Описать пути к VFS и стартовому скрипту."""
     parser = argparse.ArgumentParser(description="Эмулятор оболочки с GUI.")
     parser.add_argument(
-        "--vfs", type=Path, default=EXAMPLES / "minimal.xml",
+        "--vfs", type=Path, default=EXAMPLES / "deep.xml",
         help="путь к XML-файлу виртуальной файловой системы",
     )
     parser.add_argument(

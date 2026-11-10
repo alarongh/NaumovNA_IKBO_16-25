@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="VFS с файлами">
+  <file name="hello.txt">Привет</file>
+  <file name="bytes.bin" encoding="base64">AAH/</file>
+  <file name="empty.txt" />
+</vfs>

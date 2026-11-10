@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="Учебная VFS">
+  <dir name="home">
+    <dir name="student">
+      <dir name="docs">
+        <file name="readme.txt">hello</file>
+        <file name="bytes.bin" encoding="base64">AAH/</file>
+        <file name=".note">ok</file>
+      </dir>
+      <file name="profile.txt">student</file>
+    </dir>
+  </dir>
+  <dir name="tmp" />
+  <file name="welcome.txt">VFS</file>
+</vfs>
