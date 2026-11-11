@@ -7,66 +7,74 @@ from src.emulator.shell import Shell, ShellError, parse_command
 from src.emulator.vfs import Vfs
 
 
-class ShellTests(unittest.TestCase):
-    def setUp(self):
-        self.shell = Shell(Vfs.load(EXAMPLES / "deep.xml"))
+def make_shell():
+    """Открыть независимый сеанс на учебном образе."""
+    return Shell(Vfs.load(EXAMPLES / "deep.xml"))
 
+
+class ShellTests(unittest.TestCase):
     def test_split_command(self):
         result = parse_command("  ls   -l  /home ")
         self.assertEqual(result, ("ls", ["-l", "/home"]))
 
     def test_empty_and_unknown_commands(self):
-        self.assertEqual(self.shell.execute("   "), "")
+        shell = make_shell()
+        self.assertEqual(shell.execute("   "), "")
         with self.assertRaisesRegex(ShellError, "команда не найдена"):
-            self.shell.execute("unknown")
+            shell.execute("unknown")
 
     def test_ls_options(self):
-        self.assertEqual(self.shell.execute("ls"), "home\ntmp\nwelcome.txt")
-        self.shell.execute("cd /home/student/docs")
-        self.assertEqual(self.shell.execute("ls"), "bytes.bin\nreadme.txt")
+        shell = make_shell()
+        self.assertEqual(shell.execute("ls"), "home\ntmp\nwelcome.txt")
+        shell.execute("cd /home/student/docs")
+        self.assertEqual(shell.execute("ls"), "bytes.bin\nreadme.txt")
         self.assertEqual(
-            self.shell.execute("ls -a"), ".\n..\n.note\nbytes.bin\nreadme.txt",
+            shell.execute("ls -a"), ".\n..\n.note\nbytes.bin\nreadme.txt",
         )
         self.assertIn("-rw-r--r-- student students 2 .note",
-                      self.shell.execute("ls -al"))
-        self.assertEqual(self.shell.execute("ls -- .note"), ".note")
+                      shell.execute("ls -al"))
+        self.assertEqual(shell.execute("ls -- .note"), ".note")
 
     def test_cd_keeps_state_and_cannot_escape_root(self):
-        self.shell.execute("cd /home/student")
-        self.shell.execute("cd ./docs/../docs")
-        self.assertEqual(self.shell.execute("pwd"), "/home/student/docs")
+        shell = make_shell()
+        shell.execute("cd /home/student")
+        shell.execute("cd ./docs/../docs")
+        self.assertEqual(shell.execute("pwd"), "/home/student/docs")
         with self.assertRaisesRegex(ShellError, "не каталог"):
-            self.shell.execute("cd bytes.bin")
+            shell.execute("cd bytes.bin")
         with self.assertRaisesRegex(ShellError, "не каталог"):
-            self.shell.execute("cd bytes.bin/..")
-        self.assertEqual(self.shell.execute("pwd"), "/home/student/docs")
-        self.shell.execute("cd ../../../../..")
-        self.assertEqual(self.shell.execute("pwd"), "/")
-        self.shell.execute("cd /tmp")
-        self.shell.execute("cd")
-        self.assertEqual(self.shell.execute("pwd"), "/")
+            shell.execute("cd bytes.bin/..")
+        self.assertEqual(shell.execute("pwd"), "/home/student/docs")
+        shell.execute("cd ../../../../..")
+        self.assertEqual(shell.execute("pwd"), "/")
+        shell.execute("cd /tmp")
+        shell.execute("cd")
+        self.assertEqual(shell.execute("pwd"), "/")
 
     def test_du_and_uname(self):
-        self.assertEqual(self.shell.execute("du -s /"), "20\t/")
-        self.assertEqual(self.shell.execute("du /home"), (
+        shell = make_shell()
+        self.assertEqual(shell.execute("du -s /"), "20\t/")
+        self.assertEqual(shell.execute("du /home"), (
             "10\t/home/student/docs\n17\t/home/student\n17\t/home"
         ))
-        size = self.shell.execute("du -- /welcome.txt")
+        size = shell.execute("du -- /welcome.txt")
         self.assertEqual(size, "3\t/welcome.txt")
-        self.assertEqual(self.shell.execute("uname"), "Linux")
+        self.assertEqual(shell.execute("uname"), "Linux")
         self.assertEqual(
-            self.shell.execute("uname -a"), "Linux vfs 1.0 emulator",
+            shell.execute("uname -a"), "Linux vfs 1.0 emulator",
         )
 
     def test_bad_options_and_paths(self):
+        shell = make_shell()
         for line in ("ls /absent", "ls -x", "ls / /tmp", "pwd arg",
                      "uname -x", "du -a", "du /missing/../tmp"):
             with self.subTest(line=line), self.assertRaises(ShellError):
-                self.shell.execute(line)
+                shell.execute(line)
 
     def test_exit_with_and_without_arguments(self):
+        shell = make_shell()
         with self.assertRaises(ShellError):
-            self.shell.execute("exit extra")
-        self.assertFalse(self.shell.closed)
-        self.shell.execute("exit")
-        self.assertTrue(self.shell.closed)
+            shell.execute("exit extra")
+        self.assertFalse(shell.closed)
+        shell.execute("exit")
+        self.assertTrue(shell.closed)
