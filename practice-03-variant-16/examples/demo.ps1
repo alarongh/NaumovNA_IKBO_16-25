@@ -1,4 +1,6 @@
 $ErrorActionPreference = 'Stop'
+$env:PYTHONUTF8 = '1'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
     New-Item -ItemType Directory -Force output | Out-Null
