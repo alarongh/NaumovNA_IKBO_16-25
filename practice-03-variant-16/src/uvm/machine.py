@@ -20,7 +20,8 @@ class Machine:
         self.pc = 0
         self.accumulator = 0
         self.operations = {
-            "load": self.load, "read": self.read, "store": self.store,
+            "load": self.load, "read": self.read,
+            "store": self.store, "popcnt": self.popcnt,
         }
 
     def check_address(self, address):
@@ -52,6 +53,11 @@ class Machine:
     def store(self, operand):
         """Записать аккумулятор в память по адресу B."""
         self.put_word(operand, self.accumulator)
+
+    def popcnt(self, operand):
+        """Записать число единичных битов в адрес из аккумулятора."""
+        result = self.word(operand).bit_count()
+        self.put_word(self.accumulator, result)
 
     def run(self):
         """Выполнять команды до конца исходной программы."""
