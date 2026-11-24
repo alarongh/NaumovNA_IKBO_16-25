@@ -3,6 +3,8 @@
 import argparse
 import sys
 
+from uvm.codec import encode
+from uvm.files import write_result
 from uvm.format import SPECS, parse_program
 
 
@@ -15,9 +17,13 @@ def main():
     args = parser.parse_args()
     try:
         program = parse_program(args.source)
+        binary = encode(program)
+        write_result(args.source, args.output, binary)
+        print(f"Команд: {len(program)}")
         if args.test:
             for name, operand in program:
-                print(f"A={SPECS[name][0]}, B={operand}")
+                chunk = encode([(name, operand)])
+                print(", ".join(f"0x{byte:02X}" for byte in chunk))
     except (OSError, ValueError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1
