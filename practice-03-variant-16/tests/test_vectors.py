@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import unittest
-from xml.etree import ElementTree as ET
+from xml.etree import ElementTree as element_tree
 
 from src.uvm.codec import encode
 from src.uvm.dump import memory_dump
@@ -25,7 +25,9 @@ class VectorTests(unittest.TestCase):
                 source = EXAMPLES / f"vector-{number}.json"
                 machine = Machine(encode(parse_program(source)))
                 self.assertEqual(machine.run(), 24)
-                root = ET.fromstring(memory_dump(machine, 1024, 1044))
+                root = element_tree.fromstring(
+                    memory_dump(machine, 1024, 1044),
+                )
                 self.assertEqual([int(c.text) for c in root], expected)
                 self.assertEqual([int(c.get("address")) for c in root],
                                  [1024, 1028, 1032, 1036, 1040, 1044])
