@@ -1,0 +1,25 @@
+start: declaration* value
+declaration: _VAR NAME value ";"
+?value: NUMBER -> number
+      | array
+      | dictionary
+      | "#[" expr "]"
+array: "({" [value ("," value)*] "})"
+dictionary: _BEGIN entry* _END
+?entry: pair | declaration
+pair: NAME ":=" value ";"
+?expr: expr "+" atom -> add
+     | expr "-" atom -> subtract
+     | atom
+?atom: value
+     | NAME -> reference
+     | "concat" "(" expr "," expr ")" -> concat
+     | "len" "(" expr ")" -> length
+     | "(" expr ")"
+NUMBER: /[1-9][0-9]*/
+NAME: /(?!(?:begin|end|var)\b)[a-zA-Z]+/
+_BEGIN: /begin\b/
+_END: /end\b/
+_VAR: /var\b/
+%import common.WS
+%ignore WS
